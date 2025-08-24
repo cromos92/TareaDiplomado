@@ -1,0 +1,23 @@
+# Top-level deps for Diplomado RAG M3 notebooks
+numpy
+pandas
+matplotlib
+seaborn
+scikit-learn
+tiktoken
+pydantic>=2
+python-dotenv
+openai
+langchain
+langchain-community
+langchain-openai
+langchain-text-splitters
+langgraph
+sentence-transformers
+datasets
+chromadb
+faiss-cpu  # installed via conda if available
+pypdf
+pdfminer.six
+unstructured
+duckduckgo-search

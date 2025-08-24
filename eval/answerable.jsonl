@@ -1,0 +1,28 @@
+{"question": "¿Cuál es el tema principal del documento fundamentos_marketing_digital.txt?", "expected": "Marketing digital esencial para PyMEs, incluyendo canales principales, métricas y errores comunes. Fuente: fundamentos_marketing_digital.txt"}
+
+{"question": "Menciona dos puntos clave del archivo PDF sobre casos de éxito.", "expected": "• Panadería Pan Dorado aumentó 340% pedidos online con Instagram y WhatsApp • Consultora Negocios Smart generó 12,000 suscriptores con LinkedIn y webinars. Fuente: casos_exito_pymes_marketing.pdf"}
+
+{"question": "¿Qué ROI promedio menciona el documento TXT para email marketing?", "expected": "$42 por cada dólar invertido según el archivo de fundamentos. Fuente: fundamentos_marketing_digital.txt"}
+
+{"question": "¿Cuánto invirtió mensualmente la panadería Pan Dorado según el PDF?", "expected": "$800 USD mensuales con ROI de 480%. Fuente: casos_exito_pymes_marketing.pdf"}
+
+{"question": "¿Qué porcentaje del presupuesto recomienda el TXT destinar a marketing digital?", "expected": "Entre 7-12% de los ingresos priorizando canales donde está la audiencia objetivo. Fuente: fundamentos_marketing_digital.txt"}
+
+{"question": "Compara los ROI de los tres casos de éxito del PDF.", "expected": "Panadería Pan Dorado: 480%, Consultora Negocios Smart: 620%, Tienda Moda Urbana: 390%. Fuente: casos_exito_pymes_marketing.pdf"}
+
+{"question": "¿Qué tendencias del documento Word son más relevantes para e-commerce?", "expected": "Video marketing interactivo, commerce social nativo y personalización hiper-segmentada son clave para e-commerce. Fuente: tendencias_marketing_digital_2025.docx"}
+
+{"question": "Según el documento de tendencias, ¿qué porcentaje del tráfico online será video en 2025?", "expected": "82% de todo el tráfico online será video para 2025. Fuente: tendencias_marketing_digital_2025.docx"}
+
+{"question": "¿Qué errores comunes menciona el TXT que cometen las PyMEs?", "expected": "No definir buyer personas, estar en todas las plataformas sin estrategia, no medir resultados, copiar estrategias sin adaptar, abandonar muy rápido. Fuente: fundamentos_marketing_digital.txt"}
+
+{"question": "¿Cuál fue el crecimiento de seguidores de Instagram de la panadería según el PDF?", "expected": "25,000 seguidores en Instagram en 12 meses. Fuente: casos_exito_pymes_marketing.pdf"}
+{"question": "¿Qué timeline sugiere el documento Word para implementar IA conversacional?", "expected": "Q1 2025 para implementación de AI conversacional según el timeline sugerido. Fuente: tendencias_marketing_digital_2025.docx"}
+
+{"question": "¿Qué métricas clave menciona el TXT para medir marketing digital?", "expected": "CAC (Customer Acquisition Cost), LTV (Lifetime Value), ROI, Engagement Rate, Conversion Rate. Fuente: fundamentos_marketing_digital.txt"}
+
+{"question": "Según el PDF, ¿cuánto tiempo toman los resultados significativos?", "expected": "6-12 meses mínimo según los factores clave del éxito identificados. Fuente: casos_exito_pymes_marketing.pdf"}
+
+{"question": "¿Qué porcentaje del budget recomienda el Word destinar a experimentación?", "expected": "15-20% del budget a experimentación con nuevas tendencias, 80-85% en tácticas probadas. Fuente: tendencias_marketing_digital_2025.docx"}
+
+{"question": "¿Qué concluye el documento TXT acerca de la clave del éxito en marketing digital?", "expected": "La clave está en consistencia, medición constante y adaptación basada en datos reales del comportamiento de la audiencia. Fuente: fundamentos_marketing_digital.txt"}

@@ -288,6 +288,7 @@
                 <a href="/ingest/ui" class="quick-btn">📤 Subir Documento</a>
                 <a href="/openai/playground/" class="quick-btn">📝 Resumir Texto</a>
                 <a href="/ingest/status" class="quick-btn">📊 Ver Estadísticas</a>
+                <a href="/eval/playground/" class="quick-btn">🧪 Testing RAG</a>
             </div>
         </div>
 
@@ -347,6 +348,28 @@
                 </div>
             </div>
 
+            <!-- Card Testing y Evaluación -->
+            <div class="card">
+                <div class="card-icon">🧪</div>
+                <h3>Testing y Evaluación RAG</h3>
+                <p>Sistema completo de evaluación para testear respuestas del RAG contra el conjunto de evaluación de LangChain. Incluye métricas automáticas y comparación lado a lado.</p>
+                <div class="card-actions">
+                    <a href="/eval/playground/" class="btn btn-primary">🧪 Testing Playground</a>
+                    <a href="/eval/data" class="btn btn-secondary">📊 Datos Eval</a>
+                </div>
+            </div>
+
+            <!-- Card Chat Libre -->
+            <div class="card">
+                <div class="card-icon">💬</div>
+                <h3>Chat Libre con ChatGPT</h3>
+                <p>Interfaz de chat sin restricciones para hacer preguntas generales y obtener respuestas de IA. Perfecto para consultas que no requieren el contexto de documentos.</p>
+                <div class="card-actions">
+                    <a href="/chatgpt/ui" class="btn btn-primary">💬 Chat Libre</a>
+                    <a href="/chatgpt/chat" class="btn btn-secondary">📡 API</a>
+                </div>
+            </div>
+
             <!-- Card Estadísticas -->
             <div class="card">
                 <div class="card-icon">📊</div>
@@ -354,6 +377,7 @@
                 <p>Monitorea el estado de tu colección Qdrant: archivos, chunks, tipos de documento y rendimiento del sistema.</p>
                 <div class="card-actions">
                     <a href="/ingest/status" class="btn btn-primary">📊 Ver Stats</a>
+                    <a href="/stats" class="btn btn-warning">📈 Stats Detalladas</a>
                     <button onclick="refreshStats()" class="btn btn-secondary">🔄 Actualizar</button>
                 </div>
             </div>
@@ -386,12 +410,7 @@
         </div>
     </div>
 
-    <!-- Botón Volver -->
-    <div class="text-center mt-8 mb-6">
-        <a href="/selector" class="btn btn-secondary btn-lg">
-            <i class="fas fa-arrow-left"></i> Volver al Selector
-        </a>
-    </div>
+
 
     <script>
         // Verificar estado del servidor

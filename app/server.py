@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import os
 import tempfile
 import shutil
+import json
 from pathlib import Path
 from datetime import datetime
 
@@ -999,6 +1000,671 @@ class RAGInput(BaseModel):
     question: str
 
 rag_router = RunnableLambda(_router)
+
+# =============================
+# EVALUACIÓN Y TESTING DE RAG
+# =============================
+
+def _load_eval_data():
+    """Carga los datos de evaluación desde los archivos JSONL."""
+    eval_data = {
+        "answerable": [],
+        "unanswerable": [],
+        "reports": {}
+    }
+    
+    try:
+        # Usar ruta relativa simple
+        eval_dir = Path("eval")
+        print(f"Intentando cargar desde: {eval_dir.absolute()}")
+        
+        # Cargar preguntas answerable
+        answerable_path = eval_dir / "answerable.jsonl"
+        if answerable_path.exists():
+            with open(answerable_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip():
+                        eval_data["answerable"].append(json.loads(line))
+            print(f"Cargadas {len(eval_data['answerable'])} preguntas answerable")
+        else:
+            print(f"Archivo no encontrado: {answerable_path.absolute()}")
+        
+        # Cargar preguntas unanswerable
+        unanswerable_path = eval_dir / "unanswerable.jsonl"
+        if unanswerable_path.exists():
+            with open(unanswerable_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip():
+                        eval_data["unanswerable"].append(json.loads(line))
+            print(f"Cargadas {len(eval_data['unanswerable'])} preguntas unanswerable")
+        else:
+            print(f"Archivo no encontrado: {unanswerable_path.absolute()}")
+        
+        # Cargar reportes
+        report_answerable_path = eval_dir / "report_answerable.json"
+        if report_answerable_path.exists():
+            with open(report_answerable_path, 'r', encoding='utf-8') as f:
+                eval_data["reports"]["answerable"] = json.load(f)
+            print(f"Reporte answerable cargado")
+        else:
+            print(f"Archivo no encontrado: {report_answerable_path.absolute()}")
+        
+        report_unanswerable_path = eval_dir / "report_unanswerable.json"
+        if report_unanswerable_path.exists():
+            with open(report_unanswerable_path, 'r', encoding='utf-8') as f:
+                eval_data["reports"]["unanswerable"] = json.load(f)
+            print(f"Reporte unanswerable cargado")
+        else:
+            print(f"Archivo no encontrado: {report_unanswerable_path.absolute()}")
+                
+        print(f"Datos de evaluación cargados: {len(eval_data['answerable'])} answerable, {len(eval_data['unanswerable'])} unanswerable")
+                
+    except Exception as e:
+        print(f"Error cargando datos de evaluación: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    return eval_data
+
+@app.get("/eval/data")
+async def get_eval_data():
+    """Retorna todos los datos de evaluación."""
+    print("Endpoint /eval/data llamado")
+    data = _load_eval_data()
+    print(f"Retornando datos: {len(data['answerable'])} answerable, {len(data['unanswerable'])} unanswerable")
+    return data
+
+@app.post("/eval/test")
+async def test_eval_question(request: dict):
+    """Testea una pregunta específica del conjunto de evaluación."""
+    try:
+        question = request.get("question", "")
+        expected = request.get("expected", "")
+        
+        if not question:
+            raise HTTPException(status_code=400, detail="Pregunta requerida")
+        
+        # Obtener respuesta del RAG
+        rag_response = rag_router.invoke({"question": question})
+        
+        # Calcular métricas básicas
+        response_length = len(rag_response)
+        expected_length = len(expected) if expected else 0
+        
+        return {
+            "question": question,
+            "expected": expected,
+            "response": rag_response,
+            "metrics": {
+                "response_length": response_length,
+                "expected_length": expected_length,
+                "length_ratio": round(response_length / expected_length, 2) if expected_length > 0 else 0
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en testing: {str(e)}")
+
+@app.get("/eval/playground/", response_class=HTMLResponse)
+async def eval_playground():
+    """Interfaz para testing y evaluación de RAG."""
+    return HTMLResponse(content="""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>🧪 Testing RAG - Evaluación de Respuestas</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            
+            body { 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #667eea 100%);
+                min-height: 100vh;
+                color: #333;
+            }
+            
+            .header {
+                background: linear-gradient(135deg, #d52b1e 0%, #f4a460 50%, #ffffff 100%);
+                padding: 30px 0;
+                text-align: center;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            }
+            
+            .header h1 {
+                font-size: 3rem;
+                color: #1e3c72;
+                margin-bottom: 10px;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .header p {
+                font-size: 1.2rem;
+                color: #2a5298;
+                font-weight: 500;
+            }
+            
+            .main-container {
+                max-width: 1400px;
+                margin: 40px auto;
+                padding: 0 20px;
+            }
+            
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                margin-bottom: 40px;
+            }
+            
+            .stat-card {
+                background: white;
+                border-radius: 20px;
+                padding: 30px;
+                text-align: center;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                border-left: 5px solid #667eea;
+            }
+            
+            .stat-number {
+                font-size: 3rem;
+                font-weight: 800;
+                color: #667eea;
+                margin-bottom: 10px;
+            }
+            
+            .stat-label {
+                color: #6c757d;
+                font-size: 1.1rem;
+                font-weight: 600;
+            }
+            
+            .testing-section {
+                background: white;
+                border-radius: 25px;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                overflow: hidden;
+                margin-bottom: 30px;
+            }
+            
+            .section-header {
+                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                padding: 30px;
+                border-bottom: 1px solid #dee2e6;
+            }
+            
+            .section-header h2 {
+                color: #1e3c72;
+                font-size: 2rem;
+                margin-bottom: 10px;
+            }
+            
+            .section-header p {
+                color: #6c757d;
+                font-size: 1.1rem;
+            }
+            
+            .content-section {
+                padding: 30px;
+            }
+            
+            .question-selector {
+                margin-bottom: 30px;
+            }
+            
+            .question-selector select {
+                width: 100%;
+                padding: 15px;
+                border: 2px solid #e9ecef;
+                border-radius: 15px;
+                font-size: 16px;
+                margin-bottom: 20px;
+            }
+            
+            .question-display {
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 15px;
+                margin-bottom: 20px;
+                border-left: 4px solid #667eea;
+            }
+            
+            .question-display h4 {
+                color: #1e3c72;
+                margin-bottom: 10px;
+                font-size: 1.2rem;
+            }
+            
+            .expected-answer {
+                background: #e8f5e8;
+                padding: 15px;
+                border-radius: 10px;
+                margin-top: 10px;
+                border-left: 4px solid #28a745;
+            }
+            
+            .expected-answer h5 {
+                color: #155724;
+                margin-bottom: 8px;
+                font-size: 1rem;
+            }
+            
+            .test-button {
+                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                color: white;
+                border: none;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin-bottom: 20px;
+            }
+            
+            .test-button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+            }
+            
+            .unanswerable-test {
+                background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+                box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3) !important;
+            }
+            
+            .unanswerable-test:hover {
+                box-shadow: 0 12px 35px rgba(220, 53, 69, 0.4) !important;
+            }
+            
+            .question-type-indicator {
+                padding: 15px;
+                border-radius: 10px;
+                margin-bottom: 20px;
+                text-align: center;
+                font-weight: 600;
+                font-size: 1.1rem;
+            }
+            
+            .indicator-answerable {
+                background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+                color: #155724;
+                border-left: 5px solid #28a745;
+            }
+            
+            .indicator-unanswerable {
+                background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+                color: #721c24;
+                border-left: 5px solid #dc3545;
+            }
+            
+            .results-section {
+                background: #f8f9fa;
+                padding: 25px;
+                border-radius: 15px;
+                border-left: 4px solid #17a2b8;
+                display: none;
+            }
+            
+            .results-section h4 {
+                color: #1e3c72;
+                margin-bottom: 15px;
+                font-size: 1.3rem;
+            }
+            
+            .rag-response {
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                margin-bottom: 20px;
+                border: 1px solid #dee2e6;
+            }
+            
+            .metrics-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 15px;
+            }
+            
+            .metric-item {
+                background: white;
+                padding: 15px;
+                border-radius: 10px;
+                text-align: center;
+                border: 1px solid #dee2e6;
+            }
+            
+            .metric-value {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: #667eea;
+                margin-bottom: 5px;
+            }
+            
+            .metric-label {
+                color: #6c757d;
+                font-size: 0.9rem;
+            }
+            
+            .back-link {
+                text-align: center;
+                margin-top: 30px;
+            }
+            
+            .back-link a {
+                display: inline-block;
+                background: linear-gradient(135deg, #d52b1e 0%, #f4a460 100%);
+                color: white;
+                text-decoration: none;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                box-shadow: 0 5px 15px rgba(213, 43, 30, 0.3);
+                margin: 10px;
+            }
+            
+            .back-link a:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 25px rgba(213, 43, 30, 0.4);
+            }
+            
+            .loading {
+                text-align: center;
+                padding: 20px;
+                color: #667eea;
+            }
+            
+            .loading::after {
+                content: '';
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                border: 3px solid #667eea;
+                border-radius: 50%;
+                border-top-color: transparent;
+                animation: spin 1s linear infinite;
+                margin-left: 10px;
+            }
+            
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+            
+            @media (max-width: 768px) {
+                .header h1 { font-size: 2rem; }
+                .stats-grid { grid-template-columns: 1fr; }
+                .content-section { padding: 20px; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🧪 Testing RAG</h1>
+            <p>Evaluación y Testing de Respuestas - Sistema de Evaluación LangChain</p>
+        </div>
+        
+        <div class="main-container">
+            <!-- Estadísticas Generales -->
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-number">...</div>
+                    <div class="stat-label">Preguntas Answerable</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">...</div>
+                    <div class="stat-label">Preguntas Unanswerable</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">...</div>
+                    <div class="stat-label">Tasa de Respuesta</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">...</div>
+                    <div class="stat-label">Latencia Promedio</div>
+                </div>
+            </div>
+            
+            <!-- Sección de Testing -->
+            <div class="testing-section">
+                <div class="section-header">
+                    <h2>🔬 Testing de Preguntas</h2>
+                    <p>Selecciona una pregunta del conjunto de evaluación y compara la respuesta del RAG con la esperada</p>
+                </div>
+                
+                <div class="content-section">
+                    <div class="question-selector">
+                        <select id="questionSelect" onchange="loadQuestion()">
+                            <option value="">-- Selecciona una pregunta para testear --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="question-display" id="questionDisplay" style="display: none;">
+                        <div class="question-type-indicator" id="questionTypeIndicator">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                        
+                        <h4>📝 Pregunta Seleccionada:</h4>
+                        <p id="selectedQuestion"></p>
+                        
+                        <div class="expected-answer">
+                            <h5>✅ Respuesta Esperada:</h5>
+                            <p id="expectedAnswer"></p>
+                        </div>
+                        
+                        <button onclick="testQuestion()" class="test-button" id="testButton">
+                            🚀 Testear Respuesta RAG
+                        </button>
+                    </div>
+                    
+                    <div class="results-section" id="resultsSection">
+                        <h4>📊 Resultados del Test</h4>
+                        <div class="rag-response">
+                            <h5>🤖 Respuesta del RAG:</h5>
+                            <p id="ragResponse"></p>
+                        </div>
+                        
+                        <div class="metrics-grid">
+                            <div class="metric-item">
+                                <div class="metric-value" id="responseLength">0</div>
+                                <div class="metric-label">Longitud Respuesta</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-value" id="expectedLength">0</div>
+                                <div class="metric-label">Longitud Esperada</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-value" id="lengthRatio">0</div>
+                                <div class="metric-label">Ratio Longitud</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="back-link">
+            <a href="/dashboard">← Volver al Dashboard</a>
+        </div>
+        
+        <script>
+            let evalData = {};
+            let currentQuestion = null;
+            
+            // Cargar datos de evaluación al iniciar
+            async function loadEvalData() {
+                try {
+                    const response = await fetch('/eval/data');
+                    evalData = await response.json();
+                    updateStats();
+                    populateQuestionSelector();
+                } catch (error) {
+                    console.error('Error cargando datos de evaluación:', error);
+                }
+            }
+            
+            // Actualizar estadísticas
+            function updateStats() {
+                const stats = evalData.reports || {};
+                const answerable = stats.answerable || {};
+                const unanswerable = stats.unanswerable || {};
+                
+                const statsGrid = document.getElementById('statsGrid');
+                const statCards = statsGrid.querySelectorAll('.stat-card');
+                
+                if (statCards.length >= 4) {
+                    statCards[0].querySelector('.stat-number').textContent = evalData.answerable?.length || 0;
+                    statCards[1].querySelector('.stat-number').textContent = evalData.unanswerable?.length || 0;
+                    statCards[2].querySelector('.stat-number').textContent = (answerable.answerable_rate * 100).toFixed(1) + '%';
+                    statCards[3].querySelector('.stat-number').textContent = (answerable.avg_latency_s || 0).toFixed(2) + 's';
+                }
+            }
+            
+            // Poblar selector de preguntas
+            function populateQuestionSelector() {
+                const select = document.getElementById('questionSelect');
+                const answerableQuestions = evalData.answerable || [];
+                const unanswerableQuestions = evalData.unanswerable || [];
+                
+                // Limpiar opciones existentes
+                select.innerHTML = '<option value="">-- Selecciona una pregunta para testear --</option>';
+                
+                // Agregar preguntas answerable (Respondibles)
+                if (answerableQuestions.length > 0) {
+                    const answerableGroup = document.createElement('optgroup');
+                    answerableGroup.label = '🧪 Preguntas Respondibles (' + answerableQuestions.length + ')';
+                    
+                    answerableQuestions.forEach((item, index) => {
+                        const option = document.createElement('option');
+                        option.value = 'answerable_' + index;
+                        option.textContent = '✅ ' + item.question.substring(0, 75) + '...';
+                        answerableGroup.appendChild(option);
+                    });
+                    
+                    select.appendChild(answerableGroup);
+                }
+                
+                // Agregar preguntas unanswerable (Irrespondibles)
+                if (unanswerableQuestions.length > 0) {
+                    const unanswerableGroup = document.createElement('optgroup');
+                    unanswerableGroup.label = '❓ Preguntas Irrespondibles (' + unanswerableQuestions.length + ')';
+                    
+                    unanswerableQuestions.forEach((item, index) => {
+                        const option = document.createElement('option');
+                        option.value = 'unanswerable_' + index;
+                        option.textContent = '❌ ' + item.question.substring(0, 75) + '...';
+                        unanswerableGroup.appendChild(option);
+                    });
+                    
+                    select.appendChild(unanswerableGroup);
+                }
+            }
+            
+            // Cargar pregunta seleccionada
+            function loadQuestion() {
+                const select = document.getElementById('questionSelect');
+                const questionDisplay = document.getElementById('questionDisplay');
+                
+                if (select.value === '') {
+                    questionDisplay.style.display = 'none';
+                    return;
+                }
+                
+                const [type, indexStr] = select.value.split('_');
+                const index = parseInt(indexStr);
+                
+                if (type === 'answerable') {
+                    currentQuestion = evalData.answerable[index];
+                    currentQuestion.type = 'answerable';
+                    // Cambiar el estilo del botón para preguntas respondibles
+                    document.getElementById('testButton').textContent = '🚀 Testear Respuesta RAG';
+                    document.getElementById('testButton').className = 'test-button';
+                    
+                    // Mostrar indicador de pregunta respondible
+                    document.getElementById('questionTypeIndicator').innerHTML = 
+                        '🧪 <strong>Pregunta Respondible</strong> - El RAG debe proporcionar una respuesta basada en los documentos';
+                    document.getElementById('questionTypeIndicator').className = 'question-type-indicator indicator-answerable';
+                    
+                } else if (type === 'unanswerable') {
+                    currentQuestion = evalData.unanswerable[index];
+                    currentQuestion.type = 'unanswerable';
+                    // Cambiar el estilo del botón para preguntas irrespondibles
+                    document.getElementById('testButton').textContent = '🚫 Validar Abstinencia RAG';
+                    document.getElementById('testButton').className = 'test-button unanswerable-test';
+                    
+                    // Mostrar indicador de pregunta irrespondible
+                    document.getElementById('questionTypeIndicator').innerHTML = 
+                        '❓ <strong>Pregunta Irrespondible</strong> - El RAG debe abstenerse de responder';
+                    document.getElementById('questionTypeIndicator').className = 'question-type-indicator indicator-unanswerable';
+                }
+                
+                document.getElementById('selectedQuestion').textContent = currentQuestion.question;
+                document.getElementById('expectedAnswer').textContent = currentQuestion.expected;
+                questionDisplay.style.display = 'block';
+                
+                // Ocultar resultados anteriores
+                document.getElementById('resultsSection').style.display = 'none';
+            }
+            
+            // Testear pregunta
+            async function testQuestion() {
+                if (!currentQuestion) return;
+                
+                const resultsSection = document.getElementById('resultsSection');
+                const ragResponse = document.getElementById('ragResponse');
+                const testButton = document.getElementById('testButton');
+                
+                // Deshabilitar botón durante el testing
+                testButton.disabled = true;
+                testButton.textContent = '⏳ Procesando...';
+                
+                resultsSection.style.display = 'block';
+                ragResponse.innerHTML = '<div class="loading">⏳ Generando respuesta RAG...</div>';
+                
+                try {
+                    const response = await fetch('/eval/test', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            question: currentQuestion.question,
+                            expected: currentQuestion.expected
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (response.ok) {
+                        // Mostrar respuesta RAG
+                        ragResponse.innerHTML = data.response;
+                        
+                        // Actualizar métricas
+                        document.getElementById('responseLength').textContent = data.metrics.response_length;
+                        document.getElementById('expectedLength').textContent = data.metrics.expected_length;
+                        document.getElementById('lengthRatio').textContent = data.metrics.length_ratio;
+                        
+                        // Scroll suave a resultados
+                        resultsSection.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        ragResponse.innerHTML = '❌ <strong>Error:</strong> ' + data.detail;
+                    }
+                } catch (error) {
+                    ragResponse.innerHTML = '❌ <strong>Error de conexión:</strong> No se pudo conectar con el servidor';
+                } finally {
+                    // Restaurar botón
+                    testButton.disabled = false;
+                    if (currentQuestion.type === 'answerable') {
+                        testButton.textContent = '🚀 Testear Respuesta RAG';
+                    } else {
+                        testButton.textContent = '🚫 Validar Abstinencia RAG';
+                    }
+                }
+            }
+            
+            // Cargar datos al iniciar
+            loadEvalData();
+        </script>
+    </body>
+    </html>
+    """)
 
 # Simple RAG endpoints
 @app.post("/rag/query")

@@ -3,7 +3,7 @@ from langchain.prompts import PromptTemplate
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import os
 import tempfile
 import shutil
@@ -29,8 +29,12 @@ except Exception:
     _SemanticChunker = None
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
 
-# Cargar .env si existe, pero priorizar variables de entorno del sistema
-load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=False)
+# Cargar variables desde el .env más cercano (prioriza el de la raíz del proyecto)
+# sin sobreescribir variables ya presentes en el entorno
+load_dotenv(find_dotenv(usecwd=True) or None, override=False)
+
+# Directorio absoluto para archivos estáticos (independiente del CWD)
+STATIC_DIR = (Path(__file__).resolve().parent / "static")
 
 summarization_assistant_template = """
 You are an expert text summarization assistant with advanced analytical skills. Your task is to create comprehensive, well-structured summaries that capture the essence and key insights of the provided text.
@@ -74,9 +78,9 @@ app = FastAPI(
 
 # Montar archivos estáticos
 try:
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 except Exception:
-    # Si no existe el directorio, crear uno temporal
+    # Si no existe el directorio, ignorar
     pass
 
 @app.get("/")
@@ -91,7 +95,7 @@ def root():
 async def dashboard():
     """Dashboard principal del sistema RAG."""
     try:
-        with open("app/static/dashboard.html", "r", encoding="utf-8") as f:
+        with open(STATIC_DIR / "dashboard.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         # Dashboard limpio y funcional
@@ -219,7 +223,7 @@ async def dashboard():
 async def simple_interface():
     """Interfaz simple del sistema RAG."""
     try:
-        with open("app/static/simple.html", "r", encoding="utf-8") as f:
+        with open(STATIC_DIR / "simple.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="""
@@ -243,7 +247,7 @@ async def simple_interface():
 async def style_selector():
     """Selector de estilos para el dashboard."""
     try:
-        with open("app/static/selector.html", "r", encoding="utf-8") as f:
+        with open(STATIC_DIR / "selector.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="""
@@ -267,7 +271,7 @@ async def style_selector():
 async def ingest_ui():
     """Interfaz web para ingesta de documentos."""
     try:
-        with open("app/static/index.html", "r", encoding="utf-8") as f:
+        with open(STATIC_DIR / "index.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         # Fallback si no existe el archivo HTML
@@ -2374,8 +2378,19 @@ async def upload_and_ingest_document(
                 pass
         raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
 
-@app.get("/ingest/status", response_class=HTMLResponse)
-async def get_ingest_status():
+@app.get("/ingest/status")
+async def get_ingest_status_json():
+    """Retorna el estado actual de la colección Qdrant como JSON (para frontend)."""
+    try:
+        stats = _compute_corpus_stats()
+        if "error" in stats:
+            return JSONResponse({"status": "error", "detail": stats["error"], "collection_stats": {"total_files": 0, "total_chunks": 0, "by_type": {}, "samples": []}}, status_code=200)
+        return JSONResponse({"status": "ok", "collection_stats": stats})
+    except Exception as e:
+        return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
+
+@app.get("/ingest/status/html", response_class=HTMLResponse)
+async def get_ingest_status_html():
     """Retorna el estado actual de la colección Qdrant con formato HTML bonito."""
     try:
         stats = _compute_corpus_stats()
@@ -2408,7 +2423,7 @@ async def get_ingest_status():
             </body>
             </html>
             """)
-        
+
         # Crear HTML bonito para las estadísticas
         stats_html = f"""
         <!DOCTYPE html>
@@ -2554,6 +2569,120 @@ async def get_ingest_status():
         </html>
         """)
 
+# Agregar después de la función dashboard()
+
+# Nuevo endpoint para chat libre con ChatGPT
+@app.post("/chatgpt/chat")
+async def chat_with_gpt(request: dict):
+    """Chat directo con ChatGPT sin restricciones."""
+    try:
+        message = request.get("message", "")
+        if not message:
+            raise HTTPException(status_code=400, detail="Mensaje requerido")
+        
+        # Usar el LLM existente para chat libre
+        response = llm.invoke(message)
+        
+        return JSONResponse({
+            "status": "success",
+            "response": response.content,
+            "model": "gpt-4o",
+            "timestamp": str(datetime.now())
+        })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en chat: {str(e)}")
+
+# Nueva interfaz web para chat libre
+@app.get("/chatgpt/ui", response_class=HTMLResponse)
+async def chatgpt_ui():
+    """Interfaz web para chat libre con ChatGPT."""
+    return HTMLResponse(content="""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Chat Libre con ChatGPT</title>
+        <meta charset="utf-8">
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+            .chat-container { max-width: 800px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; }
+            .chat-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; }
+            .chat-header h1 { margin: 0; font-size: 24px; }
+            .chat-header p { margin: 10px 0 0 0; font-size: 18px; opacity: 0.9; }
+            .chat-messages { height: 400px; overflow-y: auto; padding: 20px; background: #f8f9fa; }
+            .message { margin-bottom: 15px; padding: 12px 16px; border-radius: 20px; max-width: 70%; }
+            .user-message { background: #007bff; color: white; margin-left: auto; }
+            .bot-message { background: #e9ecef; color: #333; }
+            .chat-input { padding: 20px; background: white; border-top: 1px solid #dee2e6; }
+            .input-group { display: flex; gap: 10px; }
+            .chat-input input { flex: 1; padding: 12px; border: 2px solid #dee2e6; border-radius: 25px; font-size: 16px; }
+            .chat-input button { padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 25px; cursor: pointer; font-size: 16px; }
+            .chat-input button:hover { opacity: 0.9; }
+            .back-link { text-align: center; margin-top: 20px; }
+            .back-link a { color: white; text-decoration: none; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="chat-container">
+            <div class="chat-header">
+                <h1>🤖 Chat Libre con ChatGPT</h1>
+                <p>Pregunta lo que quieras sin restricciones</p>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot-message">¡Hola! Soy ChatGPT. ¿En qué puedo ayudarte hoy?</div>
+            </div>
+            <div class="chat-input">
+                <div class="input-group">
+                    <input type="text" id="messageInput" placeholder="Escribe tu mensaje aquí..." onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button onclick="sendMessage()">Enviar</button>
+                </div>
+            </div>
+        </div>
+        <div class="back-link">
+            <a href="/dashboard">← Volver al Dashboard</a>
+        </div>
+        
+        <script>
+            async function sendMessage() {
+                const input = document.getElementById('messageInput');
+                const message = input.value.trim();
+                if (!message) return;
+                
+                // Agregar mensaje del usuario
+                addMessage(message, 'user');
+                input.value = '';
+                
+                try {
+                    const response = await fetch('/chatgpt/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: message })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        addMessage(data.response, 'bot');
+                    } else {
+                        addMessage('Error: ' + data.detail, 'bot');
+                    }
+                } catch (error) {
+                    addMessage('Error de conexión', 'bot');
+                }
+            }
+            
+            function addMessage(text, sender) {
+                const messagesDiv = document.getElementById('chatMessages');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                messageDiv.textContent = text;
+                messagesDiv.appendChild(messageDiv);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        </script>
+    </body>
+    </html>
+    """)
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
@@ -2670,15 +2799,24 @@ async def chatgpt_ui():
     </body>
     </html>
     """)
+# Endpoint de prueba simple
+@app.get("/test")
+async def test_endpoint():
+    """Endpoint de prueba simple."""
+    return {"message": "Servidor funcionando correctamente", "status": "ok"}
+
 @app.get("/stats", response_class=HTMLResponse)
 async def stats_page():
     """Página bonita para mostrar estadísticas del sistema."""
     try:
         # Obtener estadísticas
-        stats = _compute_corpus_stats()
-        
-        if "error" in stats:
-            stats = {"total_files": 0, "total_chunks": 0, "by_type": {}, "samples": []}
+        try:
+            stats = _compute_corpus_stats()
+            if "error" in stats:
+                stats = {"total_files": 0, "total_chunks": 0, "by_type": {}, "samples": []}
+        except Exception as e:
+            print(f"Error obteniendo estadísticas: {e}")
+            stats = {"total_files": 0, "total_chunks": 0, "by_type": {}, "samples": [], "error": str(e)}
         
         stats_html = f"""
         <!DOCTYPE html>
@@ -2730,6 +2868,19 @@ async def stats_page():
                         <div class="stat-description">Formatos soportados</div>
                     </div>
                 </div>
+                
+                {f'''
+                <div class="files-section" style="background: #fff3cd; border-left: 5px solid #ffc107;">
+                    <h3>⚠️ Problema de Conexión</h3>
+                    <p>No se pudieron cargar las estadísticas completas. Error: {stats.get('error', 'Desconocido')}</p>
+                    <p><strong>Verifica que:</strong></p>
+                    <ul>
+                        <li>El archivo .env esté configurado correctamente</li>
+                        <li>Las credenciales de Qdrant sean válidas</li>
+                        <li>La conexión a internet esté funcionando</li>
+                    </ul>
+                </div>
+                ''' if stats.get('error') else ''}
                 
                 <div class="files-section">
                     <h3>📁 Archivos en el Sistema</h3>

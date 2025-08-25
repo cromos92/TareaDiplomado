@@ -14,3 +14,4 @@ python-multipart>=0.0.6
 pydantic>=2.5.0
 langserve>=0.0.30
 sse_starlette>=1.6.0
+pypdf>=3.17.0

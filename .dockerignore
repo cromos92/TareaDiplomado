@@ -24,5 +24,4 @@ Thumbs.db
 
 # Project specific - solo excluir directorios grandes
 data/
-eval/
 scripts/

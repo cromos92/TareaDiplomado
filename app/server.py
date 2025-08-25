@@ -121,7 +121,11 @@ def root():
     """Endpoint raíz que redirige automáticamente al dashboard."""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/dashboard", status_code=302)
+# Primero, deshabilitar el OpenAPI personalizado que está causando errores
+# Comentar o eliminar esta línea:
+# app.openapi = custom_openapi  # type: ignore[assignment]
 
+# Luego, limpiar completamente el dashboard
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard():
     """Dashboard principal del sistema RAG."""
@@ -129,24 +133,127 @@ async def dashboard():
         with open("app/static/dashboard.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        # Fallback si no existe el archivo HTML
+        # Dashboard limpio y funcional
         return HTMLResponse(content="""
         <!DOCTYPE html>
         <html>
-        <head><title>Dashboard RAG System</title></head>
+        <head>
+            <title>Dashboard RAG System</title>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+                .dashboard-container { max-width: 1200px; margin: 0 auto; }
+                .dashboard-header { text-align: center; color: white; margin-bottom: 40px; }
+                .dashboard-header h1 { font-size: 48px; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+                .dashboard-header p { font-size: 20px; opacity: 0.9; margin: 10px 0; }
+                .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; }
+                .card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
+                .card:hover { transform: translateY(-5px); }
+                .card-header { display: flex; align-items: center; margin-bottom: 20px; }
+                .card-icon { font-size: 48px; margin-right: 20px; }
+                .card-title { font-size: 24px; font-weight: bold; color: #333; margin: 0; }
+                .card-description { color: #666; margin-bottom: 25px; line-height: 1.6; }
+                .card-button { display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 25px; font-weight: bold; transition: all 0.3s ease; }
+                .card-button:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+                .stats-preview { background: #f8f9fa; padding: 20px; border-radius: 15px; margin-top: 20px; }
+                .stats-preview h4 { margin: 0 0 15px 0; color: #333; }
+                .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+                .stat-item { text-align: center; }
+                .stat-number { font-size: 24px; font-weight: bold; color: #667eea; }
+                .stat-label { font-size: 14px; color: #666; }
+            </style>
+        </head>
         <body>
-            <h1>🚀 RAG System Dashboard</h1>
-            <p>El archivo HTML del dashboard no se encontró.</p>
-            <p>Usa los endpoints directamente:</p>
-            <ul>
-                <li><strong>GET /ingest/status</strong> - Ver estadísticas</li>
-                <li><strong>POST /ingest/upload</strong> - Subir documento</li>
-                <li><strong>GET /rag/playground/</strong> - Probar RAG</li>
-            </ul>
+            <div class="dashboard-container">
+                <div class="dashboard-header">
+                    <h1>🚀 RAG System Dashboard</h1>
+                    <p>Sistema de Retrieval-Augmented Generation - Diplomado IA 2024-S1</p>
+                </div>
+                
+                <div class="cards-grid">
+                    <!-- Card: Chat Libre con ChatGPT -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🤖</div>
+                            <h3 class="card-title">Chat Libre con ChatGPT</h3>
+                        </div>
+                        <p class="card-description">
+                            Conversa directamente con ChatGPT sin restricciones. Pregunta lo que quieras y obtén respuestas inteligentes en tiempo real.
+                        </p>
+                        <a href="/chatgpt/ui" class="card-button">Iniciar Chat</a>
+                    </div>
+                    
+                    <!-- Card: Sistema RAG -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🔍</div>
+                            <h3 class="card-title">Sistema RAG</h3>
+                        </div>
+                        <p class="card-description">
+                            Haz preguntas sobre tus documentos. El sistema busca en tu base de conocimientos y responde basándose en la información disponible.
+                        </p>
+                        <a href="/rag/playground/" class="card-button">Probar RAG</a>
+                    </div>
+                    
+                    <!-- Card: Resumen de Texto -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">📝</div>
+                            <h3 class="card-title">Resumen de Texto</h3>
+                        </div>
+                        <p class="card-description">
+                            Resúme cualquier texto usando GPT-4o. Ideal para documentos largos, artículos o cualquier contenido que necesites condensar.
+                        </p>
+                        <a href="/openai/playground/" class="card-button">Crear Resumen</a>
+                    </div>
+                    
+                    <!-- Card: Subir Documentos -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">📁</div>
+                            <h3 class="card-title">Subir Documentos</h3>
+                        </div>
+                        <p class="card-description">
+                            Agrega nuevos documentos a tu base de conocimientos. Soporta PDFs, Word y archivos de texto. Los documentos se procesan automáticamente.
+                        </p>
+                        <a href="/ingest/ui" class="card-button">Subir Archivo</a>
+                    </div>
+                    
+                    <!-- Card: Estadísticas del Sistema -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">📊</div>
+                            <h3 class="card-title">Estadísticas del Sistema</h3>
+                        </div>
+                        <p class="card-description">
+                            Visualiza el estado de tu sistema RAG. Ve cuántos documentos tienes, tipos de archivos y estadísticas detalladas de tu base de conocimientos.
+                        </p>
+                        <a href="/stats" class="card-button">Ver Estadísticas</a>
+                        
+                        <!-- Vista previa de estadísticas -->
+                        <div class="stats-preview">
+                            <h4>�� Resumen Rápido</h4>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-number">4</div>
+                                    <div class="stat-label">Archivos</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number">38</div>
+                                    <div class="stat-label">Chunks</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number">3</div>
+                                    <div class="stat-label">Tipos</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </body>
         </html>
         """)
-
 @app.get("/simple", response_class=HTMLResponse)
 async def simple_interface():
     """Interfaz simple del sistema RAG."""

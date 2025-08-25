@@ -595,3 +595,226 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+# Agregar después de la función dashboard()
+
+# Nuevo endpoint para chat libre con ChatGPT
+@app.post("/chatgpt/chat")
+async def chat_with_gpt(request: dict):
+    """Chat directo con ChatGPT sin restricciones."""
+    try:
+        message = request.get("message", "")
+        if not message:
+            raise HTTPException(status_code=400, detail="Mensaje requerido")
+        
+        # Usar el LLM existente para chat libre
+        response = llm.invoke(message)
+        
+        return JSONResponse({
+            "status": "success",
+            "response": response.content,
+            "model": "gpt-4o",
+            "timestamp": str(datetime.now())
+        })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en chat: {str(e)}")
+
+# Nueva interfaz web para chat libre
+@app.get("/chatgpt/ui", response_class=HTMLResponse)
+async def chatgpt_ui():
+    """Interfaz web para chat libre con ChatGPT."""
+    return HTMLResponse(content="""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Chat Libre con ChatGPT</title>
+        <meta charset="utf-8">
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+            .chat-container { max-width: 800px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; }
+            .chat-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; }
+            .chat-header h1 { margin: 0; font-size: 24px; }
+            .chat-messages { height: 400px; overflow-y: auto; padding: 20px; background: #f8f9fa; }
+            .message { margin-bottom: 15px; padding: 12px 16px; border-radius: 20px; max-width: 70%; }
+            .user-message { background: #007bff; color: white; margin-left: auto; }
+            .bot-message { background: #e9ecef; color: #333; }
+            .chat-input { padding: 20px; background: white; border-top: 1px solid #dee2e6; }
+            .input-group { display: flex; gap: 10px; }
+            .chat-input input { flex: 1; padding: 12px; border: 2px solid #dee2e6; border-radius: 25px; font-size: 16px; }
+            .chat-input button { padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 25px; cursor: pointer; font-size: 16px; }
+            .chat-input button:hover { opacity: 0.9; }
+            .back-link { text-align: center; margin-top: 20px; }
+            .back-link a { color: white; text-decoration: none; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="chat-container">
+            <div class="chat-header">
+                <h1>🤖 Chat Libre con ChatGPT</h1>
+                <p>Pregunta lo que quieras sin restricciones</p>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot-message">¡Hola! Soy ChatGPT. ¿En qué puedo ayudarte hoy?</div>
+            </div>
+            <div class="chat-input">
+                <div class="input-group">
+                    <input type="text" id="messageInput" placeholder="Escribe tu mensaje aquí..." onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button onclick="sendMessage()">Enviar</button>
+                </div>
+            </div>
+        </div>
+        <div class="back-link">
+            <a href="/dashboard">← Volver al Dashboard</a>
+        </div>
+        
+        <script>
+            async function sendMessage() {
+                const input = document.getElementById('messageInput');
+                const message = input.value.trim();
+                if (!message) return;
+                
+                // Agregar mensaje del usuario
+                addMessage(message, 'user');
+                input.value = '';
+                
+                try {
+                    const response = await fetch('/chatgpt/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: message })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        addMessage(data.response, 'bot');
+                    } else {
+                        addMessage('Error: ' + data.detail, 'bot');
+                    }
+                } catch (error) {
+                    addMessage('Error de conexión', 'bot');
+                }
+            }
+            
+            function addMessage(text, sender) {
+                const messagesDiv = document.getElementById('chatMessages');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                messageDiv.textContent = text;
+                messagesDiv.appendChild(messageDiv);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        </script>
+    </body>
+    </html>
+    """)
+@app.get("/stats", response_class=HTMLResponse)
+async def stats_page():
+    """Página bonita para mostrar estadísticas del sistema."""
+    try:
+        # Obtener estadísticas
+        stats = _compute_corpus_stats()
+        
+        if "error" in stats:
+            stats = {"total_files": 0, "total_chunks": 0, "by_type": {}, "samples": []}
+        
+        stats_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Estadísticas del Sistema RAG</title>
+            <meta charset="utf-8">
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }}
+                .stats-container {{ max-width: 1000px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; }}
+                .stats-header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }}
+                .stats-header h1 {{ margin: 0; font-size: 32px; }}
+                .stats-header p {{ margin: 10px 0 0 0; font-size: 18px; opacity: 0.9; }}
+                .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; padding: 30px; }}
+                .stat-card {{ background: #f8f9fa; padding: 25px; border-radius: 15px; text-align: center; border-left: 5px solid #667eea; }}
+                .stat-number {{ font-size: 48px; font-weight: bold; color: #667eea; margin: 10px 0; }}
+                .stat-label {{ font-size: 18px; color: #666; margin-bottom: 15px; }}
+                .files-section {{ padding: 30px; background: #f8f9fa; }}
+                .files-section h3 {{ color: #333; margin-bottom: 20px; }}
+                .file-list {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }}
+                .file-item {{ background: white; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6; }}
+                .file-name {{ font-weight: bold; color: #333; }}
+                .file-type {{ color: #666; font-size: 14px; }}
+                .back-link {{ text-align: center; margin-top: 20px; }}
+                .back-link a {{ color: white; text-decoration: none; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class="stats-container">
+                <div class="stats-header">
+                    <h1>📊 Estadísticas del Sistema RAG</h1>
+                    <p>Resumen completo de tu base de conocimientos</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total de Archivos</div>
+                        <div class="stat-number">{stats.get('total_files', 0)}</div>
+                        <div class="stat-description">Documentos procesados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total de Chunks</div>
+                        <div class="stat-number">{stats.get('total_chunks', 0)}</div>
+                        <div class="stat-description">Fragmentos de texto</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Tipos de Archivo</div>
+                        <div class="stat-number">{len(stats.get('by_type', {}))}</div>
+                        <div class="stat-description">Formatos soportados</div>
+                    </div>
+                </div>
+                
+                <div class="files-section">
+                    <h3>📁 Archivos en el Sistema</h3>
+                    <div class="file-list">
+        """
+        
+        # Agregar archivos individuales
+        for file_name in stats.get('samples', []):
+            file_type = Path(file_name).suffix.lower().lstrip('.')
+            if file_type == 'pdf':
+                icon = "📄"
+            elif file_type in ['doc', 'docx']:
+                icon = "📝"
+            elif file_type == 'txt':
+                icon = "📄"
+            else:
+                icon = "��"
+                
+            stats_html += f"""
+                        <div class="file-item">
+                            <div class="file-name">{icon} {file_name}</div>
+                            <div class="file-type">Tipo: {file_type.upper()}</div>
+                        </div>
+            """
+        
+        stats_html += """
+                    </div>
+                </div>
+            </div>
+            
+            <div class="back-link">
+                <a href="/dashboard">← Volver al Dashboard</a>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return HTMLResponse(content=stats_html)
+        
+    except Exception as e:
+        return HTMLResponse(content=f"""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Error en Estadísticas</title></head>
+        <body>
+            <h1>Error al cargar estadísticas</h1>
+            <p>{str(e)}</p>
+            <a href="/dashboard">Volver al Dashboard</a>
+        </body>
+        </html>
+        """)

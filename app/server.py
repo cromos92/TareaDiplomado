@@ -115,66 +115,12 @@ def custom_openapi():
 
 app.openapi = custom_openapi  # type: ignore[assignment]
 
+ 
 @app.get("/")
 def root():
-    """Endpoint raíz con información completa del sistema."""
-    return JSONResponse({
-        "status": "ok",
-        "message": "🚀 RAG System API - Sistema de Retrieval-Augmented Generation",
-        "version": "1.0",
-        "diplomado": "IA 2024-S1",
-        "interfaces": {
-            "selector": "/selector",
-            "dashboard": "/dashboard",
-            "simple": "/simple",
-            "ingest": "/ingest/ui"
-        },
-        "endpoints": {
-            "openai": {
-                "playground": "/openai/playground/",
-                "invoke": "/openai/invoke",
-                "description": "Resumen de texto usando GPT-4o"
-            },
-            "rag": {
-                "playground": "/rag/playground/",
-                "invoke": "/rag/invoke",
-                "description": "Sistema RAG con Qdrant"
-            },
-            "ingest": {
-                "upload": "/ingest/upload",
-                "status": "/ingest/status",
-                "description": "Subir e ingerir documentos a Qdrant"
-            }
-        },
-        "examples": {
-            "openai": {
-                "method": "POST",
-                "path": "/openai/invoke",
-                "body": {"input": {"text_for_summarization": "Tu texto aquí"}},
-            },
-            "rag": {
-                "method": "POST", 
-                "path": "/rag/invoke",
-                "body": {"input": {"question": "¿Cuál es el tema principal?"}},
-            },
-            "ingest": {
-                "method": "POST",
-                "path": "/ingest/upload",
-                "form_data": {
-                    "file": "archivo.pdf",
-                    "chunker_type": "semantic",
-                    "chunk_size": 1200,
-                    "chunk_overlap": 200
-                }
-            }
-        },
-        "quick_start": {
-            "1": "Ve a /selector para elegir tu interfaz preferida",
-            "2": "O accede directamente a /dashboard, /simple o /ingest/ui",
-            "3": "Usa /rag/playground/ para probar el sistema RAG",
-            "4": "Sube documentos en /ingest/ui"
-        }
-    })
+    """Endpoint raíz que redirige automáticamente al dashboard."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/dashboard", status_code=302)
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard():

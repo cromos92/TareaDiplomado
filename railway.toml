@@ -1,0 +1,283 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "docker/Dockerfile.django"
+
+[deploy]
+healthcheckPath = "/health/"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# ============================================================================
+# Servicios
+# ============================================================================
+
+# Servicio Django Principal
+[[services]]
+name = "farmacia-ia-django"
+source = "."
+
+[services.build]
+builder = "DOCKERFILE"
+dockerfilePath = "docker/Dockerfile.django"
+buildTarget = "production"
+
+[services.deploy]
+healthcheckPath = "/health/"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Variables de entorno para Django
+[services.variables]
+DEBUG = "False"
+DJANGO_SETTINGS_MODULE = "core.settings.production"
+ALLOWED_HOSTS = "${{ RAILWAY_PUBLIC_DOMAIN }},${{ RAILWAY_PRIVATE_DOMAIN }}"
+SECRET_KEY = "${{ SECRET_KEY }}"
+DATABASE_URL = "${{ DATABASE_URL }}"
+REDIS_URL = "${{ REDIS_URL }}"
+ENCRYPTION_KEY = "${{ ENCRYPTION_KEY }}"
+OPENAI_API_KEY = "${{ OPENAI_API_KEY }}"
+QDRANT_URL = "${{ QDRANT_URL }}"
+SENTRY_DSN = "${{ SENTRY_DSN }}"
+SENTRY_ENVIRONMENT = "production"
+LOG_LEVEL = "INFO"
+# Configuración para Daphne/WebSockets
+DAPHNE_VERBOSITY = "1"
+# Configuración de Channels
+CHANNEL_LAYERS_BACKEND = "channels_redis.core.RedisChannelLayer"
+
+# ============================================================================
+# Servicio FastAPI
+# ============================================================================
+[[services]]
+name = "farmacia-ia-api"
+source = "./api"
+
+[services.build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+buildTarget = "production"
+
+[services.deploy]
+healthcheckPath = "/healthz"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Variables de entorno para FastAPI
+[services.variables]
+DEBUG = "False"
+LOG_LEVEL = "INFO"
+REDIS_URL = "${{ REDIS_URL }}"
+OPENAI_API_KEY = "${{ OPENAI_API_KEY }}"
+CORS_ORIGINS = "https://${{ RAILWAY_PUBLIC_DOMAIN }}"
+RATE_LIMIT_REQUESTS = "60"
+RATE_LIMIT_WINDOW = "1 minute"
+SENTRY_DSN = "${{ SENTRY_DSN }}"
+SENTRY_ENVIRONMENT = "production"
+
+# ============================================================================
+# Base de Datos PostgreSQL
+# ============================================================================
+[[services]]
+name = "farmacia-ia-postgres"
+source = "postgres:15"
+
+[services.deploy]
+restartPolicyType = "NEVER"
+
+[services.variables]
+POSTGRES_DB = "farmacia_ia"
+POSTGRES_USER = "farmacia_user"
+POSTGRES_PASSWORD = "${{ POSTGRES_PASSWORD }}"
+
+# ============================================================================
+# Redis Cache
+# ============================================================================
+[[services]]
+name = "farmacia-ia-redis"
+source = "redis:7-alpine"
+
+[services.deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+
+[services.variables]
+REDIS_PASSWORD = "${{ REDIS_PASSWORD }}"
+
+# ============================================================================
+# Qdrant Vector Database
+# ============================================================================
+[[services]]
+name = "farmacia-ia-qdrant"
+source = "qdrant/qdrant:v1.7.0"
+
+[services.deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+
+[services.variables]
+QDRANT__SERVICE__HTTP_PORT = "6333"
+QDRANT__SERVICE__GRPC_PORT = "6334"
+
+# ============================================================================
+# Variables de Entorno Globales
+# ============================================================================
+[environments.production.variables]
+# Django
+SECRET_KEY = { generate = true }
+DEBUG = "False"
+ALLOWED_HOSTS = "${{ RAILWAY_PUBLIC_DOMAIN }},${{ RAILWAY_PRIVATE_DOMAIN }}"
+DJANGO_SETTINGS_MODULE = "core.settings.production"
+
+# Base de datos
+DATABASE_URL = "${{ farmacia-ia-postgres.DATABASE_URL }}"
+POSTGRES_PASSWORD = { generate = true }
+
+# Redis
+REDIS_URL = "${{ farmacia-ia-redis.REDIS_URL }}"
+REDIS_PASSWORD = { generate = true }
+
+# Qdrant
+QDRANT_URL = "${{ farmacia-ia-qdrant.QDRANT_URL }}"
+
+# Seguridad
+ENCRYPTION_KEY = { generate = true }
+
+# APIs externas
+OPENAI_API_KEY = { required = true }
+MINSAL_API_URL = "https://api.minsal.cl"
+
+# Monitoreo
+SENTRY_DSN = { required = false }
+SENTRY_ENVIRONMENT = "production"
+
+# Logging
+LOG_LEVEL = "INFO"
+STRUCTURED_LOGGING = "True"
+
+# Rate limiting
+RATE_LIMIT_REQUESTS = "100"
+RATE_LIMIT_WINDOW = "3600"
+
+# Session
+SESSION_TIMEOUT_MINUTES = "30"
+MAX_CONVERSATION_HISTORY = "50"
+
+# File upload
+MAX_UPLOAD_SIZE = "10485760"
+ALLOWED_FILE_TYPES = "pdf,txt,docx,xlsx"
+
+# CORS para FastAPI
+CORS_ORIGINS = "https://${{ RAILWAY_PUBLIC_DOMAIN }}"
+
+[environments.staging.variables]
+# Configuración similar pero para staging
+DEBUG = "True"
+SENTRY_ENVIRONMENT = "staging"
+LOG_LEVEL = "DEBUG"
+RATE_LIMIT_REQUESTS = "200"
+
+# ============================================================================
+# Configuración de Deployment
+# ============================================================================
+[deployment]
+# Orden de deployment (dependencias primero)
+order = [
+  "farmacia-ia-postgres",
+  "farmacia-ia-redis", 
+  "farmacia-ia-qdrant",
+  "farmacia-ia-django",
+  "farmacia-ia-api"
+]
+
+# Configuración de rollback
+[deployment.rollback]
+enabled = true
+maxVersions = 5
+
+# Configuración de health checks
+[deployment.healthcheck]
+enabled = true
+timeout = 300
+interval = 30
+retries = 3
+
+# ============================================================================
+# Configuración de Networking
+# ============================================================================
+[networking]
+# Configurar dominios personalizados
+[networking.domains]
+django = "${{ RAILWAY_PUBLIC_DOMAIN }}"
+api = "api.${{ RAILWAY_PUBLIC_DOMAIN }}"
+
+# ============================================================================
+# Configuración de Volumes (si se necesita persistencia)
+# ============================================================================
+[volumes]
+# Volume para archivos estáticos de Django
+[volumes.django-static]
+size = "1GB"
+mountPath = "/app/staticfiles"
+
+# Volume para media files
+[volumes.django-media]
+size = "5GB" 
+mountPath = "/app/media"
+
+# Volume para logs
+[volumes.logs]
+size = "2GB"
+mountPath = "/app/logs"
+
+# ============================================================================
+# Configuración de Monitoring
+# ============================================================================
+[monitoring]
+enabled = true
+
+[monitoring.metrics]
+enabled = true
+endpoint = "/metrics"
+
+[monitoring.logging]
+enabled = true
+level = "INFO"
+
+[monitoring.alerts]
+enabled = true
+# Configurar alertas específicas
+[[monitoring.alerts.rules]]
+name = "High Error Rate"
+condition = "error_rate > 0.05"
+duration = "5m"
+
+[[monitoring.alerts.rules]]
+name = "High Response Time"
+condition = "response_time_p95 > 2s"
+duration = "5m"
+
+[[monitoring.alerts.rules]]
+name = "Low Memory"
+condition = "memory_usage > 0.9"
+duration = "2m"
+
+# ============================================================================
+# Configuración de Backup (para datos críticos)
+# ============================================================================
+[backup]
+enabled = true
+
+[backup.postgres]
+enabled = true
+schedule = "0 2 * * *"  # Daily at 2 AM
+retention = "30d"
+
+[backup.qdrant]
+enabled = true
+schedule = "0 3 * * *"  # Daily at 3 AM
+retention = "7d"

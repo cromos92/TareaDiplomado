@@ -1,0 +1,114 @@
+# Dockerfile para Django - Farmacia IA
+FROM python:3.11-slim as base
+
+# Metadatos
+LABEL maintainer="Farmacia IA Team <admin@farmacia.ia>"
+LABEL description="Django backend for Farmacia IA"
+LABEL version="1.0.0"
+
+# Variables de entorno
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    # Dependencias básicas
+    gcc \
+    g++ \
+    libc6-dev \
+    libpq-dev \
+    # Dependencias para Pillow (si se usa)
+    libjpeg-dev \
+    libpng-dev \
+    # Dependencias para cryptography
+    libffi-dev \
+    libssl-dev \
+    # Utilidades
+    curl \
+    wget \
+    git \
+    # Limpieza
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Crear usuario no-root para seguridad
+RUN groupadd -r django && useradd -r -g django django
+
+# Directorio de trabajo
+WORKDIR /app
+
+# Copiar archivos de dependencias
+COPY requirements.txt .
+
+# Instalar dependencias de Python
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar scripts de utilidad
+COPY scripts/ ./scripts/
+RUN chmod +x scripts/*.sh
+
+# Copiar código de la aplicación
+COPY . .
+
+# Hacer ejecutable el script de inicio
+RUN chmod +x start.sh
+
+# Crear directorios necesarios
+RUN mkdir -p logs staticfiles media \
+    && chown -R django:django /app
+
+# Cambiar a usuario no-root
+USER django
+
+# Recopilar archivos estáticos
+RUN python manage.py collectstatic --noinput --clear
+
+# Exponer puerto
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health/ || exit 1
+
+# Comando por defecto
+CMD ["./start.sh"]
+
+# ============================================================================
+# Stage de desarrollo
+# ============================================================================
+FROM base as development
+
+USER root
+
+# Instalar dependencias de desarrollo
+RUN pip install --no-cache-dir \
+    pytest \
+    pytest-django \
+    pytest-cov \
+    black \
+    ruff \
+    ipython \
+    django-debug-toolbar
+
+USER django
+
+# Comando para desarrollo
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+# ============================================================================
+# Stage de producción
+# ============================================================================
+FROM base as production
+
+# Configuración de producción
+ENV DJANGO_SETTINGS_MODULE=core.settings.production
+ENV DEBUG=False
+
+# Usar daphne para producción (soporta WebSockets)
+RUN pip install --no-cache-dir daphne==4.0.*
+
+# Comando para producción con Daphne (ASGI)
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "--access-log", "-", "core.asgi:application"]

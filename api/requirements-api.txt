@@ -1,0 +1,41 @@
+# FastAPI y dependencias core
+fastapi==0.104.*
+uvicorn[standard]==0.24.*
+pydantic==2.*
+
+# Rate limiting
+slowapi==0.1.9
+
+# CORS
+python-multipart==0.0.6
+
+# Logging estructurado
+structlog==23.2.*
+
+# HTTP client (para integraciones)
+httpx==0.25.*
+
+# Validación y utilidades
+email-validator==2.1.*
+python-jose[cryptography]==3.3.*
+
+# Base de datos (si se necesita)
+sqlalchemy==2.0.*
+alembic==1.12.*
+
+# Redis (para rate limiting distribuido)
+redis==5.0.*
+
+# OpenAI (para IA real)
+openai>=1.30
+
+# Monitoreo y métricas
+prometheus-client==0.19.*
+
+# Testing
+pytest==7.4.*
+pytest-asyncio==0.21.*
+httpx==0.25.*  # Para TestClient
+
+# Desarrollo
+python-dotenv==1.0.*

@@ -1,0 +1,64 @@
+# ============================================================================
+# VARIABLES DE ENTORNO PARA RAILWAY
+# ============================================================================
+# Copia estas variables en Railway Dashboard → Variables
+
+# Django Core
+SECRET_KEY=django-insecure-change-me-in-production-make-it-very-long-and-random-123456789
+DEBUG=False
+ALLOWED_HOSTS=*.railway.app,*.up.railway.app
+DJANGO_SETTINGS_MODULE=core.settings
+
+# Puerto (Railway lo maneja automáticamente)
+PORT=8000
+
+# OpenAI Configuration
+OPENAI_API_KEY=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
+OPENAI_MODEL=gpt-4-turbo-preview
+OPENAI_TEMPERATURE=0.1
+
+# Qdrant Vector Database
+QDRANT_URL=https://07fa4f33-60b8-4833-ba9c-4334d3383856.us-west-1-0.aws.cloud.qdrant.io
+QDRANT_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwiZXhwIjoxNzgxMTk2NDIyfQ.Y1Nzow0mQJ9kf459Y_xzdRWvcTtgfMAKBO272xrEejk
+QDRANT_COLLECTION_NAME=MiColeccionRag
+
+# LangSmith Configuration
+LANGCHAIN_API_KEY=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
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+LANGCHAIN_PROJECT=pr-frosty-floozie-91
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_TIMEOUT=60
+
+# Security & Encryption
+ENCRYPTION_KEY=dGVzdF9lbmNyeXB0aW9uX2tleV8zMl9ieXRlcw==
+USER_ID_SALT=farmacia_ia_audit_salt
+
+# MINSAL API
+MINSAL_API_URL=https://api.minsal.cl
+MINSAL_TIMEOUT=30
+
+# Rate Limiting
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=3600
+
+# Session Management
+SESSION_TIMEOUT_MINUTES=30
+MAX_CONVERSATION_HISTORY=50
+
+# File Upload
+MAX_UPLOAD_SIZE=10485760
+ALLOWED_FILE_TYPES=pdf,txt,docx,xlsx
+
+# Logging
+LOG_LEVEL=INFO
+STRUCTURED_LOGGING=True
+
+# ============================================================================
+# VARIABLES AUTOMÁTICAS DE RAILWAY (NO AGREGAR MANUALMENTE)
+# ============================================================================
+# Estas las crea Railway automáticamente:
+# DATABASE_URL (cuando agregues PostgreSQL)
+# REDIS_URL (cuando agregues Redis)
+# RAILWAY_PUBLIC_DOMAIN
+# RAILWAY_PRIVATE_DOMAIN
+# RAILWAY_ENVIRONMENT

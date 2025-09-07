@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Base de Datos de Test
+  # ============================================================================
+  postgres-test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: farmacia_ia_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - test_network
+
+  # ============================================================================
+  # Redis de Test
+  # ============================================================================
+  redis-test:
+    image: redis:7-alpine
+    command: redis-server --save ""
+    tmpfs:
+      - /data
+    networks:
+      - test_network
+
+  # ============================================================================
+  # Django Tests
+  # ============================================================================
+  django-test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.django
+      target: development
+    environment:
+      DEBUG: "True"
+      SECRET_KEY: "test-secret-key"
+      DATABASE_URL: "postgresql://test_user:test_password@postgres-test:5432/farmacia_ia_test"
+      REDIS_URL: "redis://redis-test:6379/0"
+      ENCRYPTION_KEY: "dGVzdF9lbmNyeXB0aW9uX2tleV8zMl9ieXRlcw=="
+    depends_on:
+      - postgres-test
+      - redis-test
+    networks:
+      - test_network
+    command: >
+      sh -c "
+        ./scripts/wait-for.sh postgres-test:5432 --timeout=60 --
+        ./scripts/wait-for.sh redis-test:6379 --timeout=30 --
+        python manage.py migrate --noinput &&
+        python manage.py test --verbosity=2 &&
+        pytest --cov=. --cov-report=xml --cov-report=html
+      "
+
+  # ============================================================================
+  # FastAPI Tests
+  # ============================================================================
+  api-test:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      DEBUG: "True"
+      REDIS_URL: "redis://redis-test:6379/1"
+    depends_on:
+      - redis-test
+    networks:
+      - test_network
+    working_dir: /app
+    command: >
+      sh -c "
+        ../scripts/wait-for.sh redis-test:6379 --timeout=30 --
+        pytest --cov=. --cov-report=xml --cov-report=html
+      "
+
+networks:
+  test_network:
+    driver: bridge

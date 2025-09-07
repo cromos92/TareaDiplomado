@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Error del servidor - Farmacia IA{% endblock %}
+
+{% block page_title %}Error del servidor{% endblock %}
+
+{% block page_description %}
+<p class="mt-2 text-gray-600">
+    Ha ocurrido un error interno en el servidor.
+</p>
+{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <div class="mx-auto h-32 w-32 text-6xl mb-8">⚠️</div>
+    
+    <h2 class="text-4xl font-bold text-gray-900 mb-4">500</h2>
+    
+    <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+        Lo sentimos, ha ocurrido un error interno en el servidor. 
+        Nuestro equipo ha sido notificado y está trabajando para solucionarlo.
+    </p>
+    
+    <div class="space-y-4 sm:space-y-0 sm:space-x-4 sm:flex sm:justify-center">
+        <a href="{% url 'home' %}" 
+           class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-farmacia-600 hover:bg-farmacia-700">
+            <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            </svg>
+            Volver al Inicio
+        </a>
+        
+        <button onclick="window.location.reload()" 
+                class="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Intentar de Nuevo
+        </button>
+    </div>
+    
+    <div class="mt-12 text-sm text-gray-500">
+        <p>Si el problema persiste, por favor contacta al soporte técnico.</p>
+    </div>
+</div>
+{% endblock %}

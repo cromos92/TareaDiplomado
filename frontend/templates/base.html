@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Farmacia IA - Asistente Inteligente{% endblock %}</title>
+    
+    <!-- Tailwind CSS CDN (temporal) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'farmacia': {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
+    
+    <!-- Meta tags -->
+    <meta name="description" content="Asistente de inteligencia artificial para consultas farmacéuticas y de salud">
+    <meta name="keywords" content="farmacia, IA, asistente, medicamentos, salud">
+    <meta name="author" content="Farmacia IA">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full">
+    <div class="min-h-full">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-sm border-b border-gray-200">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex">
+                        <div class="flex-shrink-0 flex items-center">
+                            <a href="{% url 'home' %}" class="flex items-center space-x-2">
+                                <span class="text-2xl">🏥</span>
+                                <span class="text-xl font-bold text-farmacia-700">Farmacia IA</span>
+                            </a>
+                        </div>
+                        <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                            <a href="{% url 'home' %}" 
+                               class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                Inicio
+                            </a>
+                            <a href="{% url 'conversations:chat' %}" 
+                               class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                Chat IA
+                            </a>
+                            <a href="{% url 'conversations:conversation-list' %}" 
+                               class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                Historial
+                            </a>
+                            <a href="{% url 'conversations:new-conversation' %}" 
+                               class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                Nueva Consulta
+                            </a>
+                        </div>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:items-center space-x-4">
+                        {% if user.is_authenticated %}
+                            <!-- Dropdown de usuario -->
+                            <div class="relative">
+                                <button type="button" class="flex items-center space-x-2 text-gray-700 hover:text-gray-900 focus:outline-none" id="user-menu-button">
+                                    <div class="h-8 w-8 rounded-full bg-farmacia-100 flex items-center justify-center">
+                                        <span class="text-sm font-medium text-farmacia-600">
+                                            {{ user.first_name.0|default:user.username.0|upper }}
+                                        </span>
+                                    </div>
+                                    <span class="text-sm font-medium">{{ user.first_name|default:user.username }}</span>
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </button>
+                                
+                                <!-- Dropdown menu -->
+                                <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden" id="user-menu">
+                                    <a href="{% url 'profile' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        Mi Perfil
+                                    </a>
+                                    <a href="{% url 'conversations:conversation-list' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        Mis Conversaciones
+                                    </a>
+                                    {% if user.is_staff %}
+                                        <a href="{% url 'admin:index' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            Administración
+                                        </a>
+                                    {% endif %}
+                                    <div class="border-t border-gray-100"></div>
+                                    <a href="{% url 'logout' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        Cerrar Sesión
+                                    </a>
+                                </div>
+                            </div>
+                        {% else %}
+                            <a href="{% url 'login' %}" 
+                               class="text-gray-500 hover:text-gray-700 font-medium">
+                                Iniciar Sesión
+                            </a>
+                            <a href="{% url 'register' %}" 
+                               class="bg-farmacia-600 hover:bg-farmacia-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                                Registrarse
+                            </a>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Mobile menu button -->
+                    <div class="-mr-2 flex items-center sm:hidden">
+                        <button type="button" 
+                                class="bg-white inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                                id="mobile-menu-button">
+                            <span class="sr-only">Abrir menú principal</span>
+                            <svg class="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Mobile menu -->
+            <div class="sm:hidden hidden" id="mobile-menu">
+                <div class="pt-2 pb-3 space-y-1">
+                    <a href="{% url 'home' %}" 
+                       class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+                        Inicio
+                    </a>
+                    <a href="{% url 'conversations:chat' %}" 
+                       class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+                        Chat IA
+                    </a>
+                    <a href="{% url 'conversations:conversation-list' %}" 
+                       class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+                        Historial
+                    </a>
+                    <a href="{% url 'conversations:new-conversation' %}" 
+                       class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+                        Nueva Consulta
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Page header -->
+        {% block header %}
+        <header class="bg-white shadow">
+            <div class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8">
+                <h1 class="text-3xl font-bold tracking-tight text-gray-900">
+                    {% block page_title %}Farmacia IA{% endblock %}
+                </h1>
+                {% block page_description %}
+                <p class="mt-2 text-gray-600">
+                    Asistente inteligente para consultas farmacéuticas y de salud
+                </p>
+                {% endblock %}
+            </div>
+        </header>
+        {% endblock %}
+
+        <!-- Messages -->
+        {% if messages %}
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-4">
+            {% for message in messages %}
+            <div class="rounded-md p-4 mb-4 {% if message.tags == 'error' %}bg-red-50 border border-red-200{% elif message.tags == 'warning' %}bg-yellow-50 border border-yellow-200{% elif message.tags == 'success' %}bg-green-50 border border-green-200{% else %}bg-blue-50 border border-blue-200{% endif %}">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        {% if message.tags == 'error' %}
+                            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                            </svg>
+                        {% elif message.tags == 'success' %}
+                            <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                        {% else %}
+                            <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                            </svg>
+                        {% endif %}
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm {% if message.tags == 'error' %}text-red-800{% elif message.tags == 'warning' %}text-yellow-800{% elif message.tags == 'success' %}text-green-800{% else %}text-blue-800{% endif %}">
+                            {{ message }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Main content -->
+        <main>
+            <div class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
+                {% block content %}
+                <!-- Default content -->
+                <div class="px-4 py-6 sm:px-0">
+                    <div class="text-center">
+                        <div class="mx-auto h-32 w-32 text-6xl mb-4">🏥</div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                            Bienvenido a Farmacia IA
+                        </h2>
+                        <p class="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+                            Tu asistente inteligente para consultas farmacéuticas. 
+                            Obtén información sobre medicamentos, interacciones, 
+                            dosis y recomendaciones de salud de forma segura y confiable.
+                        </p>
+                        <div class="space-y-4 sm:space-y-0 sm:space-x-4 sm:flex sm:justify-center">
+                            <a href="{% url 'conversations:chat' %}" 
+                               class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-farmacia-600 hover:bg-farmacia-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-farmacia-500">
+                                <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                </svg>
+                                Iniciar Chat IA
+                            </a>
+                            <a href="{% url 'conversations:conversation-list' %}" 
+                               class="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-farmacia-500">
+                                <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                </svg>
+                                Ver Historial
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endblock %}
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-gray-200 mt-12">
+            <div class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl">🏥</span>
+                        <span class="text-gray-600">© 2024 Farmacia IA. Todos los derechos reservados.</span>
+                    </div>
+                    <div class="flex space-x-6">
+                        <a href="#" class="text-gray-400 hover:text-gray-500">
+                            <span class="sr-only">Privacidad</span>
+                            Privacidad
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-gray-500">
+                            <span class="sr-only">Términos</span>
+                            Términos
+                        </a>
+                        <a href="{% url 'health' %}" class="text-gray-400 hover:text-gray-500">
+                            <span class="sr-only">Estado</span>
+                            Estado
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Mobile menu toggle
+        document.getElementById('mobile-menu-button').addEventListener('click', function() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        });
+
+        // Dropdown del usuario
+        document.addEventListener('DOMContentLoaded', function() {
+            const userMenuButton = document.getElementById('user-menu-button');
+            const userMenu = document.getElementById('user-menu');
+            
+            if (userMenuButton && userMenu) {
+                userMenuButton.addEventListener('click', function() {
+                    userMenu.classList.toggle('hidden');
+                });
+                
+                // Cerrar dropdown al hacer clic fuera
+                document.addEventListener('click', function(event) {
+                    if (!userMenuButton.contains(event.target) && !userMenu.contains(event.target)) {
+                        userMenu.classList.add('hidden');
+                    }
+                });
+            }
+        });
+
+        // Auto-hide messages after 5 seconds
+        setTimeout(function() {
+            const messages = document.querySelectorAll('[class*="bg-red-50"], [class*="bg-yellow-50"], [class*="bg-green-50"], [class*="bg-blue-50"]');
+            messages.forEach(function(message) {
+                message.style.transition = 'opacity 0.5s';
+                message.style.opacity = '0';
+                setTimeout(function() {
+                    message.remove();
+                }, 500);
+            });
+        }, 5000);
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
